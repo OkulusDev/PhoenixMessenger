@@ -27,11 +27,11 @@
 
  4. Запустите сервер
 
- ```make server```
+ ```make run_server```
 
  5. Запустите клиент(ы)
 
- ```make client```
+ ```make run_client```
 
 ## Описание коммитов
 

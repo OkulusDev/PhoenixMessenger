@@ -6,10 +6,10 @@ REQS=requirements.txt
 PIP=pip3
 PYTHON=python3
 
-run:
+run_server:
 	$(PYTHON) $(SERVER)
 
-client:
+run_client:
 	$(PYTHON) $(CLIENT)
 
 install:

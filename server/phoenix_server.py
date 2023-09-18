@@ -1,29 +1,18 @@
 #!/usr/bin/python3
-# -*- coding:utf-8 -*-
-"""phoenix_server.py - серверная часть
-Phoenix Messenger - Быстрый, простой, анонимный и защищенный мессенджер
-Copyright (c) 2023 Okulus Dev
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
+# -*- coding: utf-8 -*-
 import sys
 import socket
-from threading import Thread
-from colorama import init, Fore, Style
-import rsa
+from datetime import datetime
+import server_ui
+from colorama import Fore, Style
+from PyQt6 import QtWidgets
+from PyQt6.QtGui import QTextCursor
+
+
+def current_date():
+	date = str(datetime.now()).split('.')[0]
+
+	return date
 
 
 def msg(text: str, msg_type: str) -> str:
@@ -38,72 +27,86 @@ def msg(text: str, msg_type: str) -> str:
 	msg_type = msg_type.lower()
 
 	if msg_type == 'info':
-		return f'{Fore.GREEN}[INFO]{Style.RESET_ALL} {text}'
+		return f'{Fore.GREEN}[INFO {current_date()}]{Style.RESET_ALL} {text}'
 	elif msg_type == 'warn':
-		return f'{Fore.YELLOW}[WARNING]{Style.RESET_ALL} {text}'
+		return f'{Fore.YELLOW}[WARNING {current_date()}]{Style.RESET_ALL} {text}'
 	elif msg_type == 'error':
-		return f'{Fore.RED}[ERROR]{Style.RESET_ALL} {text}'
+		return f'{Fore.RED}[ERROR {current_date()}]{Style.RESET_ALL} {text}'
 	else:
-		return f'{Fore.CYAN}[{msg_type.upper()}]{Style.RESET_ALL} {text}'
+		return f'{Fore.CYAN}[{msg_type.upper()} {current_date()}]{Style.RESET_ALL} {text}'
 
 
-class PhoenixServer:
-	"""Сервер Phoenix"""
+class Server:
 	def __init__(self, host: str, port: int):
-		"""Инициализация сервера Phoenix Messenger
-
-		Аргументы:
-		 + host: str - хост, IP-адрес сервера
-		 + port: int - порт сервера"""
-		# Создание констант адреса сервера
-		print(msg('Инициализация сервера...', 'info'))
 		self.HOST = host
 		self.PORT = port
 		self.SERVER_ADDRESS = (self.HOST, self.PORT)
 
-		# Создание сокета сервера
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-	def bind(self) -> bool:
-		"""Связывание сокета сервера с адресом"""
+	def bind(self) -> dict:
+		"""Привязка сервера к адресу
+		
+		Возвращает при удачной привязке:
+		 + dict {'status': True, 'info': ...}
+		Возвращает при неудачной привязке:
+		 + dict {'status': False, 'info': ...}"""
 		try:
 			self.server.bind(self.SERVER_ADDRESS)
-			print(msg(f'Сервер запущен на {self.HOST}:{self.PORT}', 'info'))
+			print(msg(f'Сервер успешно привязан к адресу {self.HOST}:{self.PORT}', 'info'))
 		except Exception as ex:
-			print(msg(f'Ошибка связывание сервера: {ex}', 'error'))
-			return False
-		else:
-			return True
-
-	def listen(self):
-		print(msg('Ждем подключений...', 'info'))
-
-		try:
-			self.server.listen()
+			print(msg(f'Ошибка привязки сервера к адресу: {ex}', 'error'))
 			
-			while True:
-				client, addr = self.server.accept()
-				print(msg(f'Клиент {addr} подключился', 'info'))
-		except KeyboardInterrupt:
-			print(msg('Сервер преврал свою работу по причине клавиатурного прерывания', 'WARN'))
-			self.shutdown()
-
-	def shutdown(self):
-		print(msg('Выключение сервера...', 'warn'))
-		self.server.close()
-		sys.exit()
-
-	def run(self):
-		if self.bind():
-			self.listen()
+			return {'status': False,
+					'info': f'Ошибка привязки сервера к адресу: {ex}'}
 		else:
-			self.shutdown()
+			return {'status': True,
+					'info': f'Сервер успешно привязан к адресу {self.HOST}:{self.PORT}'}
+
+
+class PhoenixServerUI(QtWidgets.QMainWindow, server_ui.Ui_MainWindow):
+	def __init__(self):
+		###### Инициализация и установка UI ######
+		super().__init__()
+		self.setupUi(self)
+
+		###### UI элементы ######
+		self.log_text.setEnabled(True)
+
+		self.is_launched = False
+
+		self.start_server_btn.clicked.connect(self.start_server)
+		self.shutdown_btn.clicked.connect(self.shutdown_server)
+
+	def shutdown_server(self):
+		cursor = QTextCursor(self.log_text.document())
+		self.log_text.setTextCursor(cursor)
+
+		if self.is_launched:
+			self.log_text.insertPlainText(f'\nСервер выключен')
+			self.is_launched = False
+		else:
+			self.log_text.insertPlainText(f'\nСервер выключен')
+
+	def start_server(self):
+		cursor = QTextCursor(self.log_text.document())
+		self.log_text.setTextCursor(cursor)
+
+		if self.is_launched:
+			self.log_text.insertPlainText(f'\nСервер уже запущен!')
+		else:
+			self.is_launched = True
+			server_started_info = f'Сервер запущен на {self.ipaddr_line.text()}:{self.port_line.text()}'
+			print(msg(server_started_info, 'info'))
+
+			self.log_text.insertPlainText(f'\n{server_started_info}')
 
 
 def main():
-	init(autoreset=True)
-	phoenix_server = PhoenixServer('127.0.0.1', 8080)
-	phoenix_server.run()
+	app = QtWidgets.QApplication(sys.argv)
+	window = PhoenixServerUI()
+	window.show()
+	app.exec()
 
 
 if __name__ == '__main__':
